@@ -191,7 +191,6 @@ if(typeof random !== "function"){
         return Math.round(min + Math.random() * (max - min));
     }
 }
-if(typeof sRandom !== "function"){ function sRandom(max = 1, min = 0) { return random(max, min) } } // TO ERASED
 
 if(typeof numbersRandom !== "function"){
     function numbersRandom(count, max = 1, min = 0){
@@ -201,7 +200,6 @@ if(typeof numbersRandom !== "function"){
         return aRand;
     }
 }
-if(typeof sMultiRandom !== "function"){ function sMultiRandom(count, max = 1, min = 0){ return numbersRandom(count, max, min) } } // TO ERASED
 
 if(!Array.prototype.hasOwnProperty("random")){
     Array.prototype.random = function(count = 1){
@@ -216,8 +214,6 @@ if(!Array.prototype.hasOwnProperty("random")){
 }
 if(typeof arrayRandom !== "function")
     function arrayRandom(array){ return array[random(array.length-1)] }
-if(typeof sArrayRandom !== "function") // TO ERASED
-    function sArrayRandom(array){ return arrayRandom(array) }
 
 let defaultDiacriticsRemovalMap = [
     {'base':'A', 'letters':'\u0041\u24B6\uFF21\u00C0\u00C1\u00C2\u1EA6\u1EA4\u1EAA\u1EA8\u00C3\u0100\u0102\u1EB0\u1EAE\u1EB4\u1EB2\u0226\u01E0\u00C4\u01DE\u1EA2\u00C5\u01FA\u01CD\u0200\u0202\u1EA0\u1EAC\u1EB6\u1E00\u0104\u023A\u2C6F'},
@@ -345,21 +341,10 @@ if(!HTMLElement.prototype.hasOwnProperty("insert")){
         this.insertAdjacentHTML(position, string.trim())
     }
 }
-if(!HTMLElement.prototype.hasOwnProperty("sInsert")){
-    HTMLElement.prototype.sInsert = function(position, string){
-        this.insert(position, string)
-    }
-}
 if(!NodeList.prototype.hasOwnProperty("insert")){
     NodeList.prototype.insert = function(position, string) {
         if (this.length <= 0) return
         this.forEach(element => element.insert(position, string) )
-    }
-}
-if(!NodeList.prototype.hasOwnProperty("sInsert")){
-    NodeList.prototype.sInsert = function(position, string) {
-        if (this.length <= 0) return
-        this.insert(position, string)
     }
 }
 
@@ -371,9 +356,6 @@ if(!HTMLElement.prototype.hasOwnProperty("model")){
             else elements.innerHTML = model.value
         })
     }
-}
-if(!HTMLElement.prototype.hasOwnProperty("sModel")){
-    HTMLElement.prototype.sModel = function(elements) { this.model(elements) }
 }
 
 if(!HTMLElement.prototype.hasOwnProperty("watchAttr")){
