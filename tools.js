@@ -142,7 +142,7 @@ if(!NodeList.prototype.hasOwnProperty("appendChild")){
 if(!HTMLElement.prototype.hasOwnProperty("clone")){
     HTMLElement.prototype.clone = function(container, position = "after"){
         let node = this;
-        let container = container instanceof Node ? [container] : container;
+        container = container instanceof Node ? [container] : container;
         Array.from(container).map( c => {
             const contentNode = document.importNode(node, true)
             switch(position){
