@@ -57,6 +57,11 @@ if(!NodeList.prototype.hasOwnProperty("classList")){
         get: function(){ return new ClassLists(this) }
     })
 }
+if(!Array.prototype.hasOwnProperty("classList")){
+    Object.defineProperty(Array.prototype, "classList", {
+        get: function(){ return new ClassLists(this) }
+    })
+}
 if(!HTMLElement.prototype.hasOwnProperty("scrollSmooth")){
     HTMLElement.prototype.scrollSmooth = function(duration = 1000, stopDistance = 100) {
         if(!this) return null
@@ -152,6 +157,9 @@ if(!HTMLElement.prototype.hasOwnProperty("clone")){
         } )
     }
 }
+if(!NodeList.prototype.hasOwnProperty("clone")){
+    NodeList.prototype.clone = function(container, position = "after"){ this.forEach(element => element.clone(container, position)) }
+}
 if(!Array.prototype.hasOwnProperty("loop"))
     Array.prototype.loop = function(callback) { this.forEach(element => callback(element)) }
 if(!NodeList.prototype.hasOwnProperty("loop"))
@@ -160,6 +168,8 @@ if(!HTMLElement.prototype.hasOwnProperty("html"))
     HTMLElement.prototype.html = function(txt){ this.innerHTML = txt }
 if(!NodeList.prototype.hasOwnProperty("html"))
     NodeList.prototype.html = function(txt){ this.forEach(el => el.html(txt)) }
+if(!Array.prototype.hasOwnProperty("html"))
+    Array.prototype.html = function(txt){ this.forEach(el => el.html(txt)) }
 
 if(!Number.prototype.hasOwnProperty("between"))
     Number.prototype.between = function(a, b) { return Math.min(Math.max(this,a),b) }
