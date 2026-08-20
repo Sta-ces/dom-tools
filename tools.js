@@ -1,3 +1,9 @@
+const escapeHTMLPolicy = trustedTypes.createPolicy("myEscapePolicy", {
+  createHTML: (string) => string.replace(/</g, "&lt;"),
+});
+
+export const DOMTools = {};
+
 if(!Window.prototype.hasOwnProperty("action"))
     Window.prototype.action = function(event, callback, options = false){ addEventListener(event, callback, options); return callback }
 if(!HTMLElement.prototype.hasOwnProperty("action"))
@@ -23,9 +29,25 @@ if(!NodeList.prototype.hasOwnProperty("click"))
 if(!Window.prototype.hasOwnProperty("getElId"))
     Window.prototype.getElId = function(id){ if(id === "") return null; return document.getElementById(id) }
 if(!Window.prototype.hasOwnProperty("getQuery"))
-    Window.prototype.getQuery = function(query){ if(query === "") return null; return document.querySelector(query) }
+    Window.prototype.getQuery = function(query){
+        if(query === "") return null;
+        try{
+            return document.querySelector(query)
+        } catch(e){
+            console.error("Invalid selector:", query, e)
+            return null
+        }
+    }
 if(!HTMLElement.prototype.hasOwnProperty("getQuery"))
-    HTMLElement.prototype.getQuery = function(query){ if(query === "") return null; return this.querySelector(query) }
+    HTMLElement.prototype.getQuery = function(query){
+        if(query === "") return null;
+        try{
+            return this.querySelector(query)
+        } catch(e){
+            console.error("Invalid selector:", query, e)
+            return null
+        }
+    }
 if(!NodeList.prototype.hasOwnProperty("getQuery")){
     NodeList.prototype.getQuery = function(query){
         if(!this.length || query === "") return null
@@ -35,15 +57,27 @@ if(!NodeList.prototype.hasOwnProperty("getQuery")){
 if(!Window.prototype.hasOwnProperty("getQueries")){
     Window.prototype.getQueries = function(query, toArray = false){
         if(query === "") return null
-        let el = document.querySelectorAll(query)
-        return (toArray) ? Array.from(el) : el;
+        let el;
+        try{
+            el = document.querySelectorAll(query)
+        } catch(e){
+            console.error("Invalid selector:", query, e)
+            el = null
+        }
+        return (toArray && el !== null) ? Array.from(el) : el;
     }
 }
 if(!HTMLElement.prototype.hasOwnProperty("getQueries")){
     HTMLElement.prototype.getQueries = function(query, toArray = false){
         if(query === "") return null
-        let el = this.querySelectorAll(query)
-        return (toArray) ? Array.from(el) : el;
+        let el;
+        try{
+            el = this.querySelectorAll(query)
+        } catch(e){
+            console.error("Invalid selector:", query, e)
+            el = null
+        }
+        return (toArray && el !== null) ? Array.from(el) : el;
     }
 }
 if(!NodeList.prototype.hasOwnProperty("getQueries")){
@@ -65,11 +99,25 @@ if(!Array.prototype.hasOwnProperty("classList")){
 if(!HTMLElement.prototype.hasOwnProperty("scrollSmooth")){
     HTMLElement.prototype.scrollSmooth = function(duration = 1000, stopDistance = 100) {
         if(!this) return null
+        let animationId = null
+        duration = Number(duration)
+        stopDistance = Number(stopDistance)
+
+        if (isNaN(duration) || isNaN(stopDistance)) {
+            console.error("Invalid arguments: duration and stopDistance must be numbers")
+            return null
+        }
+
         this.action("click", () => {
+            if (animationId) cancelAnimationFrame(animationId)
+
             let href = (this.hasAttribute("href"))
                 ? this.getAttribute("href")
                 : this.getAttribute("data-href")
             let target = getQuery(href)
+
+            if(target === null) return null
+
             let targetPosition = target.getBoundingClientRect().top + window.scrollY - stopDistance
             let startPosition = window.scrollY
             let distance = targetPosition - startPosition
@@ -80,15 +128,10 @@ if(!HTMLElement.prototype.hasOwnProperty("scrollSmooth")){
                 let timeElapsed = currentTime - startTime
                 let run = ease(timeElapsed, startPosition, distance, duration)
                 window.scrollTo(0, run)
-                if (timeElapsed < duration) requestAnimationFrame(animation)
+                if (timeElapsed < duration) animationId = requestAnimationFrame(animation)
             }
     
-            function ease(t, b, c, d) {
-                t /= d / 2; if (t < 1) return c / 2 * t * t + b; t--;
-                return -c / 2 * (t * (t - 2) - 1) + b;
-            }
-    
-            requestAnimationFrame(animation);
+            animationId = requestAnimationFrame(animation);
         })
     }
 }
@@ -99,23 +142,34 @@ if(!NodeList.prototype.hasOwnProperty("scrollSmooth")){
     }
 }
 if(!HTMLElement.prototype.hasOwnProperty("filterSearch")){
-    HTMLElement.prototype.filterSearch = function({models, classfilter = "filter-search", symbols = true, action = "keyup", msg = "No Result", tag = "li"}, callback = () => {}) {
+    HTMLElement.prototype.filterSearch = function({inputElement, container, classfilter = "filter-search", symbols = true, action = "keyup", msg = "No Result", tag = "li"}, callback = () => {}) {
         this.action(action, () => {
-            let input_val = models.value.toLowerCase()
-            if(symbols){
-                const REGEXP = new RegExp("\\"+getSymbols(true), "gmi")
-                input_val = input_val.replace(REGEXP,"")
-            }
-            let new_listing = Array.from(models.children).filter(item => {
-                let txtCont = "";
-                let it = item.getQueries(classfilter, true)
-                if(!it) it.map(i => txtCont += i.textContent.toLowerCase()+" " )
-                else txtCont = item.textContent.toLowerCase()
-                return txtCont.includes(input_val)
+            let inputValue = inputElement.value.toLowerCase()
+            if(symbols) inputValue = inputValue.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+
+            const items = Array.from(container.children);
+            const filteredItems = items.filter(item => {
+                let textContent = "";
+                const filterElements = item.querySelectorAll(`.${classfilter}`)
+                if (filterElements.length > 0) {
+                    filterElements.forEach(el => {
+                        textContent += el.textContent.toLowerCase() + " "
+                    })
+                } else {
+                    textContent = item.textContent.toLowerCase()
+                }
+                return textContent.includes(inputValue)
             })
-            models.innerHTML = ""
-            if(new_listing.length) models.appendChildren(new_listing)
-            else models.appendChild(`<${tag} class='filter-msg'>${msg}</${tag}>`)
+
+            container.innerHTML = ""
+            if (filteredItems.length > 0) {
+                filteredItems.appendChild(item)
+            } else {
+                const messageElement = document.createElement(tag)
+                messageElement.className = "filter-msg"
+                messageElement.textContent = msg
+                container.appendChild(messageElement)
+            }
             callback()
         })
     }
@@ -129,19 +183,24 @@ if(!NodeList.prototype.hasOwnProperty("filterSearch")){
 if(!HTMLElement.prototype.hasOwnProperty("appendChildren")){
     HTMLElement.prototype.appendChildren = function(children){
         if(!Array.isArray(children)) return null
-        for(let c = 0; c < children.length; c++) this.appendChild(children[c])
+        children.forEach(c => {
+            if(c instanceof Node) this.appendChild(c)
+        })
     }
 }
 if(!NodeList.prototype.hasOwnProperty("appendChildren")){
     NodeList.prototype.appendChildren = function(children){
-        if(!Array.isArray(children) || !this.length) return null
+        if(!this.length || !Array.isArray(children)) return null
         this.forEach(child => child.appendChildren(children))
     }
 }
 if(!NodeList.prototype.hasOwnProperty("appendChild")){
     NodeList.prototype.appendChild = function(children){
-        if(!this.length) return null
-        this.forEach(child => child.appendChild(children))
+        if(!this.length || !Array.isArray(children)) return null
+        this.forEach(child => {
+            if (child instanceof Node)
+                child.appendChild(children.cloneNode(true))
+        })
     }
 }
 if(!HTMLElement.prototype.hasOwnProperty("clone")){
@@ -165,7 +224,10 @@ if(!Array.prototype.hasOwnProperty("loop"))
 if(!NodeList.prototype.hasOwnProperty("loop"))
     NodeList.prototype.loop = function(callback) { Array.from(this).loop(callback) }
 if(!HTMLElement.prototype.hasOwnProperty("html"))
-    HTMLElement.prototype.html = function(txt){ this.innerHTML = txt }
+    HTMLElement.prototype.html = function(txt){
+        const escaped = escapeHTMLPolicy.createHTML(txt)
+        if(escaped instanceof TrustedHTML) this.innerHTML = escaped
+    }
 if(!NodeList.prototype.hasOwnProperty("html"))
     NodeList.prototype.html = function(txt){ this.forEach(el => el.html(txt)) }
 if(!Array.prototype.hasOwnProperty("html"))
@@ -180,17 +242,26 @@ if(!Number.prototype.hasOwnProperty("isbetween")){
     }
 }
 
+/**
+ * Calculates percentage-related values.
+ * @param {Object} options - Configuration options.
+ * @param {"percentage"|"value"|"reduce"} [options.execute="percentage"] - Type of calculation.
+ * @param {number} [options.max=100] - Maximum value.
+ * @param {number} [options.min=0] - Minimum value.
+ * @param {number} [options.reduce=0] - Reduction percentage.
+ * @returns {number|null} Result or null if invalid.
+ */
 if(!Number.prototype.hasOwnProperty("percentage")){
-    Number.prototype.percentage = function({excute = "percentage", max = 100, min = 0, reduce = 0}) {
+    Number.prototype.percentage = function({execute = "percentage", max = 100, min = 0, reduce = 0}) {
         if (Number.isNaN(this) || Number.isNaN(max) || Number.isNaN(min) || Number.isNaN(reduce)) return null;
-        let rslt = null;
-        switch(excute){
-            case "percentage": rslt = valToPerc(this, max, min); break;
-            case "value": rslt = percToVal(this, max, min); break;
-            case "reduce": rslt = reducePerc(this, reduce); break;
+        let result = null;
+        switch(execute){
+            case "percentage": result = valToPerc(this, max, min); break;
+            case "value": result = percToVal(this, max, min); break;
+            case "reduce": result = reducePerc(this, reduce); break;
+            default: return null;
         }
-        if(excute != "reduce" && reduce > 0) rslt = reducePerc(rslt, reduce);
-        return rslt;
+        return reduce > 0 && execute !== "reduce" ? reducePerc(result, reduce) : result;
     }
 }
 
@@ -204,22 +275,13 @@ if(typeof random !== "function"){
 
 if(typeof numbersRandom !== "function"){
     function numbersRandom(count, max = 1, min = 0){
-        let aRand = []
-        for (let i = 0; i < count; i++)
-            aRand[i] = random(max, min)
-        return aRand;
+        return Array.from({ length: count }, () => random(max, min));
     }
 }
 
 if(!Array.prototype.hasOwnProperty("random")){
     Array.prototype.random = function(count = 1){
-        if(count > 1){
-            let aRand = []
-            for (let i = 0; i < count; i++)
-                aRand[i] = this[random(this.length-1)]
-            return aRand
-        }
-        else return this[random(this.length-1)]
+        return Array.from({ length: count }, () => this[random(this.length-1)])
     }
 }
 if(typeof arrayRandom !== "function")
@@ -319,14 +381,10 @@ for (let i=0; i < defaultDiacriticsRemovalMap.length; i++){
     for (let j=0; j < letters.length; j++)
         diacriticsMap[letters[j]] = defaultDiacriticsRemovalMap[i].base
 }
-if(typeof accentReplace !== "function") // TO ERASED
-    function accentReplace(str){ return accentsReplace(str) }
 if(typeof accentsReplace !== "function")
     function accentsReplace(str){ return str.replace(/[^\u0000-\u007E]/g, function(a){ return diacriticsMap[a] || a }) }
 if(typeof aprostReplace !== "function")
     function aprostReplace(str){ return str.replace(/.\'/g, "") }
-if(typeof compressReplace !== "function") // TO ERASED
-    function compressReplace(str, space = "-"){ return (aprostReplace(accentsReplace(str)).toLowerCase()).replace(" ", space) }
 
 if(!HTMLElement.prototype.hasOwnProperty("insert")){
     HTMLElement.prototype.insert = function(position, string) {
@@ -348,7 +406,9 @@ if(!HTMLElement.prototype.hasOwnProperty("insert")){
                 position = "beforeend"; break;
         }
 
-        this.insertAdjacentHTML(position, string.trim())
+        const escaped = escapeHTMLPolicy.createHTML(string);
+        if(escaped instanceof TrustedHTML)
+            this.insertAdjacentHTML(position, escaped)
     }
 }
 if(!NodeList.prototype.hasOwnProperty("insert")){
@@ -362,8 +422,8 @@ if(!HTMLElement.prototype.hasOwnProperty("model")){
     HTMLElement.prototype.model = function(elements) {
         const model = this;
         model.addEventListener("keyup", () => {
-            if (elements instanceof NodeList) elements.forEach((element) => element.innerHTML = model.value )
-            else elements.innerHTML = model.value
+            if (elements instanceof NodeList) elements.forEach((element) => element.html(model.value) )
+            else elements.html(model.value)
         })
     }
 }
@@ -377,12 +437,28 @@ if(!HTMLElement.prototype.hasOwnProperty("watchAttr")){
             })
         })
         observer.observe(this, { attributes: true })
+        this._mutationObserver = observer
+        return observer
+    }
+}
+if(!HTMLElement.prototype.hasOwnProperty("unwatchAttr")){
+    HTMLElement.prototype.unwatchAttr = function() {
+        if (this._mutationObserver) {
+            this._mutationObserver.disconnect();
+            this._mutationObserver = null;
+        }
     }
 }
 if(!NodeList.prototype.hasOwnProperty("watchAttr")){
     NodeList.prototype.watchAttr = function(nameAttr = "", callback) {
-        if (this.length <= 0) return
+        if (!this.length) return
         this.forEach(element => element.watchAttr(nameAttr, callback))
+    }
+}
+if(!NodeList.prototype.hasOwnProperty("unwatchAttr")){
+    NodeList.prototype.unwatchAttr = function() {
+        if (!this.length) return
+        this.forEach(element => element.unwatchAttr())
     }
 }
 
@@ -391,55 +467,98 @@ if(!String.prototype.hasOwnProperty("toCapitalize"))
 
 if(typeof isMobileAndTablet !== "function")
     function isMobileAndTablet(){ return isMobile() }
-if(typeof isMobile !== "function"){
-    function isMobile(){
-        let check = false
-        (function (a) { if (/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino|android|ipad|playbook|silk/i.test(a) || /1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(a.substr(0, 4))) check = true; })(navigator.userAgent || navigator.vendor || window.opera)
-        return check
-    }
-}
+if(typeof isMobile !== "function")
+    function isMobile(){ return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) }
 
 if(typeof sender !== "function"){
-    function sender({action, params = "", method = "POST", type = "text/html"}, callback) {
+    function sender({action, params = "", method = "POST", type = "text"}, callback) {
         let xhr = new XMLHttpRequest()
         xhr.onreadystatechange = function () {
-            if (this.readyState === xhr.DONE && this.status === 200) callback(this.responseText)
+            if (this.readyState === xhr.DONE) {
+                if (this.status >= 200 && this.status < 300) {
+                    callback(this.responseText);
+                } else {
+                    console.error("Request failed:", this.status, this.statusText);
+                    callback(null, new Error(`Request failed with status ${this.status}`));
+                }
+            }
+        }
+        xhr.onerror = function() {
+            callback(null, new Error("Network error"));
         }
         xhr.open(method, action, true);
         xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
-        xhr.type = type
-        xhr.send(params)
+        xhr.responseType = type
+        xhr.send(encodeURIComponent(params))
     }
 }
 
 if(typeof loadView !== "function"){
     async function loadView({url, container}, callback = null){
         if(!container || !url) return null
-        const result = await fetch(url).then(response => { return response.text() })
-        const getResult = (async () => {
-            container.innerHTML = await result
-            if(callback !== null) callback(container)
-        })()
+        try{
+            const response = await fetch(url)
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+            const result = await response.text()
+            container.html(result)
+            if (callback) callback(container)
+        } catch(e){
+            console.error("Failed to load view", error)
+            if (callback) callback(null, error)
+        }
     }
 }
 
-if(typeof clog !== "function") function clog(msg){ console.log(msg) }
-if(typeof cwarn !== "function") function cwarn(msg){ console.warn(msg) }
-if(typeof cerror !== "function") function cerror(msg){ console.error(msg) }
-if(typeof ctable !== "function") function ctable(msg){ console.table(msg) }
-
 /** PRIVATES */
-if(typeof ClassLists !== "function"){
-    function ClassLists(nl){
-        this.add = function(classname){ nl.forEach(el => el.classList.add(classname)) }
-        this.remove = function(classname){ nl.forEach(el => el.classList.remove(classname)) }
-        this.toggle = function(classname){ nl.forEach(el => el.classList.toggle(classname)) }
-        this.contains = function(classname){ return !!Array.from(nl).filter(el => el.classList.contains(classname)).length }
-        this.replace = function(oldClass, newClass){ nl.forEach(el => el.classList.replace(oldClass, newClass)) }
+if(typeof ClassLists !== "class"){
+    class ClassLists{
+        constructor(nodelist){
+            this.nodeList = nodeList
+        }
+        add(classname){ this.nodeList.forEach(el => el.classList.add(classname)) }
+        remove(classname){ this.nodeList.forEach(el => el.classList.remove(classname)) }
+        toggle(classname){ this.nodeList.forEach(el => el.classList.toggle(classname)) }
+        contains(classname){ return !!Array.from(this.nodeList).filter(el => el.classList.contains(classname)).length }
+        replace(oldClass, newClass){ this.nodeList.forEach(el => el.classList.replace(oldClass, newClass)) }
     }
+}
+// Polyfill pour NodeList.forEach (IE11)
+if (!NodeList.prototype.forEach) {
+    NodeList.prototype.forEach = function(callback, thisArg) {
+        thisArg = thisArg || window;
+        for (let i = 0; i < this.length; i++) {
+            callback.call(thisArg, this[i], i, this);
+        }
+    };
+}
+// Polyfill pour fetch (IE11)
+if (!window.fetch) {
+    window.fetch = function(url, options) {
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open(options ? options.method || 'GET' : 'GET', url);
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    resolve({ ok: true, status: xhr.status, text: () => Promise.resolve(xhr.responseText) });
+                } else {
+                    reject(new Error(`Request failed with status ${xhr.status}`));
+                }
+            };
+            xhr.onerror = () => reject(new Error('Network error'));
+            xhr.send(options ? options.body : null);
+        });
+    };
 }
 
 // NOT PERCENTAGE
 if(typeof valToPerc !== "function") function valToPerc(number, max = 100, min = 0){ return ((number - min) * 100) / (max - min); }
 if(typeof percToVal !== "function") function percToVal(number, max = 100, min = 0){ return (number * (max - min) / 100) + min; }
 if(typeof reducePerc !== "function") function reducePerc(number, percentage){ return ((100 - percentage) / 100) * number; }
+
+// ANIMATIONS
+if(typeof ease !== "function"){
+    function ease(t, b, c, d) {
+        t /= d / 2; if (t < 1) return c / 2 * t * t + b; t--;
+        return -c / 2 * (t * (t - 2) - 1) + b;
+    }
+}
