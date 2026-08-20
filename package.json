@@ -3,6 +3,6 @@
     "terser": "^5.37.0"
   },
   "scripts": {
-    "minify-js": "terser ./tools.js -o ./tools.min.js"
+    "minify:js": "terser ./tools.js -o ./tools.min.js"
   }
 }

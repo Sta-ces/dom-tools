@@ -65,8 +65,8 @@ if(!HTMLElement.prototype.hasOwnProperty("scrollSmooth")){
                 ? this.getAttribute("href")
                 : this.getAttribute("data-href")
             let target = getQuery(href)
-            let targetPosition = target.offsetTop - stopDistance
-            let startPosition = document.scrollingElement.scrollTop
+            let targetPosition = target.getBoundingClientRect().top + window.scrollY - stopDistance
+            let startPosition = window.scrollY
             let distance = targetPosition - startPosition
             let startTime = null
     
