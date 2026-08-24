@@ -1,104 +1,48 @@
+/**
+ * Version: 2.0
+ */
+
 const escapeHTMLPolicy = trustedTypes.createPolicy("myEscapePolicy", {
-  createHTML: (string) => string.replace(/</g, "&lt;"),
+    createHTML: (string) => {
+        if (typeof string !== 'string') return string;
+        return string
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#x27;');
+        },
 });
 
-export const DOMTools = {};
-
-if(!Window.prototype.hasOwnProperty("action"))
-    Window.prototype.action = function(event, callback, options = false){ addEventListener(event, callback, options); return callback }
-if(!HTMLElement.prototype.hasOwnProperty("action"))
-    HTMLElement.prototype.action = function(event, callback, options = false) { if(!this) return null; this.addEventListener(event, callback, options); return callback }
-if(!NodeList.prototype.hasOwnProperty("action"))
-    NodeList.prototype.action = function(event, callback, options = false) { if(!this.length) return null; Array.from(this).action(event, callback, options); return callback }
-if(!Array.prototype.hasOwnProperty("action"))
-    Array.prototype.action = function(event, callback, options = false) { if(!this.length) return null; this.map(t => { t.action(event, callback, options) }); return callback }
-if(!Window.prototype.hasOwnProperty("noaction"))
-    Window.prototype.noaction = function(event, callback = () => {}, options = false, element = document){ element.removeEventListener(event, callback, options) }
-if(!HTMLElement.prototype.hasOwnProperty("noaction"))
-    HTMLElement.prototype.noaction = function(event, callback = () => {}, options = false) { this.removeEventListener(event, callback, options) }
-if(!NodeList.prototype.hasOwnProperty("noaction"))
-    NodeList.prototype.noaction = function(event, callback = () => {}, options = false) { this.forEach(el => el.noaction(event, callback, options)) }
-if(!Window.prototype.hasOwnProperty("load"))
-    Window.prototype.load = function(callback, options = false){ action("load", callback, options) }
-if(!Window.prototype.hasOwnProperty("click"))
-    Window.prototype.click = function(callback, options = false){ action("click", callback, options) }
-if(!HTMLElement.prototype.hasOwnProperty("click"))
-    HTMLElement.prototype.click = function(callback, options = false){ this.action("click", callback, options) }
-if(!NodeList.prototype.hasOwnProperty("click"))
-    NodeList.prototype.click = function(callback, options = false){ Array.from(this).map(e => e.action("click", callback, options)) }
-if(!Window.prototype.hasOwnProperty("getElId"))
-    Window.prototype.getElId = function(id){ if(id === "") return null; return document.getElementById(id) }
-if(!Window.prototype.hasOwnProperty("getQuery"))
-    Window.prototype.getQuery = function(query){
-        if(query === "") return null;
-        try{
-            return document.querySelector(query)
-        } catch(e){
-            console.error("Invalid selector:", query, e)
-            return null
-        }
-    }
-if(!HTMLElement.prototype.hasOwnProperty("getQuery"))
-    HTMLElement.prototype.getQuery = function(query){
-        if(query === "") return null;
-        try{
-            return this.querySelector(query)
-        } catch(e){
-            console.error("Invalid selector:", query, e)
-            return null
-        }
-    }
-if(!NodeList.prototype.hasOwnProperty("getQuery")){
-    NodeList.prototype.getQuery = function(query){
-        if(!this.length || query === "") return null
-        return Array.from(this).map(e => [...e.getQuery(query)] )
-    }
-}
-if(!Window.prototype.hasOwnProperty("getQueries")){
-    Window.prototype.getQueries = function(query, toArray = false){
-        if(query === "") return null
+const DOMTools = {
+    action: (element, event, callback, options = false) => { element.addEventListener(event, callback, options) },
+    noaction: (element, event, callback, options = false) => { element.removeEventListener(event, callback, options) },
+    click: (element, callback, options = false) => { element.addEventListener("click", callback, options) },
+    getElId: (element, id) => { if(id === "") return null; return document.getElementById(id) },
+    getQuery: (element, query) => {
+        if(query === "" && !(element instanceof Node)) return null
         let el;
         try{
-            el = document.querySelectorAll(query)
+            el = element.querySelector(query)
         } catch(e){
             console.error("Invalid selector:", query, e)
             el = null
         }
-        return (toArray && el !== null) ? Array.from(el) : el;
-    }
-}
-if(!HTMLElement.prototype.hasOwnProperty("getQueries")){
-    HTMLElement.prototype.getQueries = function(query, toArray = false){
-        if(query === "") return null
-        let el;
+        return el;
+    },
+    getQueries: (element, query, toArray = false) => {
+        if(query === "" && !(element instanceof Node)) return null
+        let els;
         try{
-            el = this.querySelectorAll(query)
+            els = element.querySelectorAll(query)
         } catch(e){
             console.error("Invalid selector:", query, e)
-            el = null
+            els = null
         }
-        return (toArray && el !== null) ? Array.from(el) : el;
-    }
-}
-if(!NodeList.prototype.hasOwnProperty("getQueries")){
-    NodeList.prototype.getQueries = function(query){
-        if(!this.length || query === "") return null
-        return Array.from(this).map(e => [...e.getQueries(query, true)] )
-    }
-}
-if(!NodeList.prototype.hasOwnProperty("classList")){
-    Object.defineProperty(NodeList.prototype, "classList", {
-        get: function(){ return new ClassLists(this) }
-    })
-}
-if(!Array.prototype.hasOwnProperty("classList")){
-    Object.defineProperty(Array.prototype, "classList", {
-        get: function(){ return new ClassLists(this) }
-    })
-}
-if(!HTMLElement.prototype.hasOwnProperty("scrollSmooth")){
-    HTMLElement.prototype.scrollSmooth = function(duration = 1000, stopDistance = 100) {
-        if(!this) return null
+        return (els !== null) ? Array.from(els) : els;
+    },
+    scrollSmooth: (element, duration = 1000, stopDistance = 100) => {
+        if(!element && !(element instanceof Node)) return null
         let animationId = null
         duration = Number(duration)
         stopDistance = Number(stopDistance)
@@ -108,12 +52,12 @@ if(!HTMLElement.prototype.hasOwnProperty("scrollSmooth")){
             return null
         }
 
-        this.action("click", () => {
+        DOMTools.click(element, () => {
             if (animationId) cancelAnimationFrame(animationId)
 
-            let href = (this.hasAttribute("href"))
-                ? this.getAttribute("href")
-                : this.getAttribute("data-href")
+            let href = (element.hasAttribute("href"))
+                ? element.getAttribute("href")
+                : element.getAttribute("data-href")
             let target = getQuery(href)
 
             if(target === null) return null
@@ -133,17 +77,10 @@ if(!HTMLElement.prototype.hasOwnProperty("scrollSmooth")){
     
             animationId = requestAnimationFrame(animation);
         })
-    }
-}
-if(!NodeList.prototype.hasOwnProperty("scrollSmooth")){
-    NodeList.prototype.scrollSmooth = function(duration = 1000, stopDistance = 100) {
-        if (!this.length) return null
-        Array.from(this).map(element => element.scrollSmooth(duration, stopDistance) )
-    }
-}
-if(!HTMLElement.prototype.hasOwnProperty("filterSearch")){
-    HTMLElement.prototype.filterSearch = function({inputElement, container, classfilter = "filter-search", symbols = true, action = "keyup", msg = "No Result", tag = "li"}, callback = () => {}) {
-        this.action(action, () => {
+    },
+    filterSearch: (element, {inputElement, container, classfilter = "filter-search", symbols = true, action = "keyup", msg = "No Result", tag = "li"}, callback = () => {}) => {
+        if(!element && !(element instanceof Node)) return null
+        DOMTools.action(action, () => {
             let inputValue = inputElement.value.toLowerCase()
             if(symbols) inputValue = inputValue.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
 
@@ -163,7 +100,7 @@ if(!HTMLElement.prototype.hasOwnProperty("filterSearch")){
 
             container.innerHTML = ""
             if (filteredItems.length > 0) {
-                filteredItems.appendChild(item)
+                container.appendChildren(filteredItems)
             } else {
                 const messageElement = document.createElement(tag)
                 messageElement.className = "filter-msg"
@@ -172,40 +109,17 @@ if(!HTMLElement.prototype.hasOwnProperty("filterSearch")){
             }
             callback()
         })
-    }
-}
-if(!NodeList.prototype.hasOwnProperty("filterSearch")){
-    NodeList.prototype.filterSearch = function ({classfilter = "filter-search", models, symbols = true, action = "keyup", msg = "No Result", tag = "li"}, callback = () => {}) {
-        if(!this.length) return null
-        this.forEach(element => element.filterSearch({classfilter, models, symbols, action, msg, tag}, callback) )
-    }
-}
-if(!HTMLElement.prototype.hasOwnProperty("appendChildren")){
-    HTMLElement.prototype.appendChildren = function(children){
-        if(!Array.isArray(children)) return null
-        children.forEach(c => {
-            if(c instanceof Node) this.appendChild(c)
+    },
+    appendChildren: (element, children) => {
+        if(!element && !(element instanceof Node) && !Array.isArray(children)) return null
+        children.forEach(child => {
+            if(child instanceof Node)
+                element.appendChild(child.cloneNode(true))
         })
-    }
-}
-if(!NodeList.prototype.hasOwnProperty("appendChildren")){
-    NodeList.prototype.appendChildren = function(children){
-        if(!this.length || !Array.isArray(children)) return null
-        this.forEach(child => child.appendChildren(children))
-    }
-}
-if(!NodeList.prototype.hasOwnProperty("appendChild")){
-    NodeList.prototype.appendChild = function(children){
-        if(!this.length || !Array.isArray(children)) return null
-        this.forEach(child => {
-            if (child instanceof Node)
-                child.appendChild(children.cloneNode(true))
-        })
-    }
-}
-if(!HTMLElement.prototype.hasOwnProperty("clone")){
-    HTMLElement.prototype.clone = function(container, position = "after"){
-        let node = this;
+    },
+    clone: (element, container, position = "after") => {
+        if(!element && !(element instanceof Node)) return null
+        let node = element;
         container = container instanceof Node ? [container] : container;
         Array.from(container).map( c => {
             const contentNode = document.importNode(node, true)
@@ -214,80 +128,237 @@ if(!HTMLElement.prototype.hasOwnProperty("clone")){
                 case "after": default: c.appendChild(contentNode); break;
             }
         } )
-    }
-}
-if(!NodeList.prototype.hasOwnProperty("clone")){
-    NodeList.prototype.clone = function(container, position = "after"){ this.forEach(element => element.clone(container, position)) }
-}
-if(!Array.prototype.hasOwnProperty("loop"))
-    Array.prototype.loop = function(callback) { this.forEach(element => callback(element)) }
-if(!NodeList.prototype.hasOwnProperty("loop"))
-    NodeList.prototype.loop = function(callback) { Array.from(this).loop(callback) }
-if(!HTMLElement.prototype.hasOwnProperty("html"))
-    HTMLElement.prototype.html = function(txt){
+    },
+    html: (element, txt) => {
+        if(!element && !(element instanceof Node)) return null
         const escaped = escapeHTMLPolicy.createHTML(txt)
-        if(escaped instanceof TrustedHTML) this.innerHTML = escaped
-    }
-if(!NodeList.prototype.hasOwnProperty("html"))
-    NodeList.prototype.html = function(txt){ this.forEach(el => el.html(txt)) }
-if(!Array.prototype.hasOwnProperty("html"))
-    Array.prototype.html = function(txt){ this.forEach(el => el.html(txt)) }
-
-if(!Number.prototype.hasOwnProperty("between"))
-    Number.prototype.between = function(a, b) { return Math.min(Math.max(this,a),b) }
-if(!Number.prototype.hasOwnProperty("isbetween")){
-    Number.prototype.isbetween = function(a, b) {
+        if(escaped instanceof TrustedHTML) element.innerHTML = escaped
+    },
+    between: (number, a, b) => {
+        if(!number && !(number instanceof Number)) return null
+        return Math.min(Math.max(number,a),b)
+    },
+    isbetween: (number, a, b) => {
+        if(!number && !(number instanceof Number)) return null
         let min = Math.min.apply(Math, [a, b]), max = Math.max.apply(Math, [a, b])
-        return this > min && this < max
-    }
-}
-
-/**
- * Calculates percentage-related values.
- * @param {Object} options - Configuration options.
- * @param {"percentage"|"value"|"reduce"} [options.execute="percentage"] - Type of calculation.
- * @param {number} [options.max=100] - Maximum value.
- * @param {number} [options.min=0] - Minimum value.
- * @param {number} [options.reduce=0] - Reduction percentage.
- * @returns {number|null} Result or null if invalid.
- */
-if(!Number.prototype.hasOwnProperty("percentage")){
-    Number.prototype.percentage = function({execute = "percentage", max = 100, min = 0, reduce = 0}) {
-        if (Number.isNaN(this) || Number.isNaN(max) || Number.isNaN(min) || Number.isNaN(reduce)) return null;
-        let result = null;
+        return number > min && number < max
+    },
+    percentage: (number, { execute = "percentage", max = 100, min = 0, reduce = 0 }) => {
+        if(!number && !(number instanceof Number)) return null
+        if (Number.isNaN(number) || Number.isNaN(max) || Number.isNaN(min) || Number.isNaN(reduce)) return null
+        let result = null
         switch(execute){
-            case "percentage": result = valToPerc(this, max, min); break;
-            case "value": result = percToVal(this, max, min); break;
-            case "reduce": result = reducePerc(this, reduce); break;
+            case "percentage": result = valToPerc(number, max, min); break;
+            case "value": result = percToVal(number, max, min); break;
+            case "reduce": result = reducePerc(number, reduce); break;
             default: return null;
         }
         return reduce > 0 && execute !== "reduce" ? reducePerc(result, reduce) : result;
-    }
-}
-
-if(typeof random !== "function"){
-    function random(max = 1, min = 0) {
+    },
+    random: (max = 1, min = 0) => {
         if (isNaN(min) && isNaN(max)) return;
         min = parseFloat(min); max = parseFloat(max);
         return Math.round(min + Math.random() * (max - min));
+    },
+    insert: (element, position, string) => {
+        if(!element && !(element instanceof Node)) return null
+        switch (position) {
+            case "before": case "beforebegin": case "begin":
+            case "start": case "previous":
+                position = "beforebegin"; break;
+
+            case "after": case "afterend":
+            case "end": case "next":
+                position = "afterend"; break;
+
+            case "inbefore": case "instart": case "afterbegin":
+            case "insert": case "insertBefore":
+                position = "afterbegin"; break;
+
+            case "inafter": case "inend": case "beforeend":
+            case "append": case "appendChild": default:
+                position = "beforeend"; break;
+        }
+
+        const escaped = escapeHTMLPolicy.createHTML(string);
+        if(escaped instanceof TrustedHTML)
+            element.insertAdjacentHTML(position, escaped)
+    },
+    model: (element, elements) => {
+        if(!element && !(element instanceof Node)) return null
+        const model = element;
+        DOMTools.action(model, "keyup", () => {
+            if (elements instanceof NodeList || elements instanceof Array) elements.forEach(el => DOMTools.html(el, model.value) )
+            else elements.html(model.value)
+        })
+    },
+    watchAttr: (element, nameAttr = "", callback) => {
+        if(!element && !(element instanceof Node)) return null
+        let observer = new MutationObserver((mutations) => {
+            mutations.forEach(mutation => {
+                if(mutation.type === "attributes" && (nameAttr === "" || mutation.attributeName === nameAttr))
+                    callback(mutation, mutation.attributeName)
+            })
+        })
+        observer.observe(element, { attributes: true })
+        element._mutationObserver = observer
+        return observer
+    },
+    unwatchAttr: (element) => {
+        if (element._mutationObserver) {
+            element._mutationObserver.disconnect();
+            element._mutationObserver = null;
+        }
+    },
+    toCapitalize: (string) => {
+        if(!(string instanceof String)) return null
+        return string.charAt(0).toUpperCase() + string.slice(1)
+    }
+};
+
+const DOMToolsConfig = {
+    prototypePrefix: '',
+    useTrustedTypes: true,
+};
+
+function addPrototypeMethod(proto, name, fn) {
+    const methodName = DOMToolsConfig.prototypePrefix + name;
+    if (!proto.prototype.hasOwnProperty(methodName)) {
+        proto.prototype[methodName] = function(...args) {
+            if(!this) return null
+            let callback = null;
+
+            switch (proto) {
+                case Window:
+                case Document:
+                case HTMLElement:
+                    let el = this;
+                    if(el instanceof Window) el = document;
+                    callback = fn(el, ...args)
+                    break;
+                case NodeList:
+                case Array:
+                    if(!this.length) callback = null
+                    callback = Array.from(this).flatMap(t => fn(t, ...args))
+                    break;
+                default:
+                    callback = fn(...args)
+                    break;
+            }
+            return callback
+        };
     }
 }
 
-if(typeof numbersRandom !== "function"){
-    function numbersRandom(count, max = 1, min = 0){
-        return Array.from({ length: count }, () => random(max, min));
+addPrototypeMethod(Document, 'action', DOMTools.action);
+addPrototypeMethod(HTMLElement, 'action', DOMTools.action);
+addPrototypeMethod(NodeList, 'action', DOMTools.action);
+addPrototypeMethod(Array, 'action', DOMTools.action);
+
+addPrototypeMethod(Document, 'noaction', DOMTools.action);
+addPrototypeMethod(HTMLElement, 'noaction', DOMTools.action);
+addPrototypeMethod(NodeList, 'noaction', DOMTools.action);
+addPrototypeMethod(Array, 'noaction', DOMTools.action);
+
+addPrototypeMethod(Document, 'click', DOMTools.click);
+addPrototypeMethod(HTMLElement, 'click', DOMTools.click);
+addPrototypeMethod(NodeList, 'click', DOMTools.click);
+addPrototypeMethod(Array, 'click', DOMTools.click);
+
+addPrototypeMethod(Window, 'getElId', DOMTools.getElId);
+
+addPrototypeMethod(Window, 'getQuery', DOMTools.getQuery);
+addPrototypeMethod(HTMLElement, 'getQuery', DOMTools.getQuery);
+addPrototypeMethod(NodeList, 'getQuery', DOMTools.getQuery);
+addPrototypeMethod(Array, 'getQuery', DOMTools.getQuery);
+
+addPrototypeMethod(Window, 'getQueries', DOMTools.getQueries);
+addPrototypeMethod(HTMLElement, 'getQueries', DOMTools.getQueries);
+addPrototypeMethod(NodeList, 'getQueries', DOMTools.getQueries);
+addPrototypeMethod(Array, 'getQueries', DOMTools.getQueries);
+
+addPrototypeMethod(HTMLElement, 'scrollSmooth', DOMTools.scrollSmooth);
+addPrototypeMethod(NodeList, 'scrollSmooth', DOMTools.scrollSmooth);
+addPrototypeMethod(Array, 'scrollSmooth', DOMTools.scrollSmooth);
+
+addPrototypeMethod(HTMLElement, 'filterSearch', DOMTools.filterSearch);
+addPrototypeMethod(NodeList, 'filterSearch', DOMTools.filterSearch);
+addPrototypeMethod(Array, 'filterSearch', DOMTools.filterSearch);
+
+addPrototypeMethod(HTMLElement, 'clone', DOMTools.clone);
+addPrototypeMethod(NodeList, 'clone', DOMTools.clone);
+addPrototypeMethod(Array, 'clone', DOMTools.clone);
+
+addPrototypeMethod(HTMLElement, 'html', DOMTools.html);
+addPrototypeMethod(NodeList, 'html', DOMTools.html);
+addPrototypeMethod(Array, 'html', DOMTools.html);
+
+addPrototypeMethod(Number, 'between', DOMTools.between);
+addPrototypeMethod(Number, 'isbetween', DOMTools.isbetween);
+
+addPrototypeMethod(Number, 'percentage', DOMTools.percentage);
+
+addPrototypeMethod(HTMLElement, 'insert', DOMTools.insert);
+addPrototypeMethod(NodeList, 'insert', DOMTools.insert);
+addPrototypeMethod(Array, 'insert', DOMTools.insert);
+
+addPrototypeMethod(HTMLElement, 'model', DOMTools.model);
+
+addPrototypeMethod(HTMLElement, 'watchAttr', DOMTools.watchAttr);
+addPrototypeMethod(NodeList, 'watchAttr', DOMTools.watchAttr);
+addPrototypeMethod(Array, 'watchAttr', DOMTools.watchAttr);
+
+addPrototypeMethod(HTMLElement, 'unwatchAttr', DOMTools.unwatchAttr);
+addPrototypeMethod(NodeList, 'unwatchAttr', DOMTools.unwatchAttr);
+addPrototypeMethod(Array, 'unwatchAttr', DOMTools.unwatchAttr);
+
+addPrototypeMethod(String, 'toCapitalize', DOMTools.toCapitalize);
+
+if(typeof isMobileAndTablet !== "function")
+    function isMobileAndTablet(){ return isMobile() }
+if(typeof isMobile !== "function")
+    function isMobile(){ return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) }
+
+if(typeof sender !== "function"){
+    function sender({action, params = {}, method = "POST", type = "text"}, callback) {
+        let xhr = new XMLHttpRequest()
+        xhr.onreadystatechange = function () {
+            if (this.readyState === xhr.DONE) {
+                if (this.status >= 200 && this.status < 300) {
+                    callback(this.responseText);
+                } else {
+                    console.error("Request failed:", this.status, this.statusText);
+                    callback(null, new Error(`Request failed with status ${this.status}`));
+                }
+            }
+        }
+        xhr.onerror = function() {
+            callback(null, new Error("Network error"));
+        }
+        xhr.open(method, action, true);
+        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
+        xhr.responseType = type
+        xhr.send(params instanceof string ? encodeURIComponent(params) : params)
     }
 }
 
-if(!Array.prototype.hasOwnProperty("random")){
-    Array.prototype.random = function(count = 1){
-        return Array.from({ length: count }, () => this[random(this.length-1)])
+if(typeof loadView !== "function"){
+    async function loadView({url, container}, callback = null){
+        if(!container || !url) return null
+        try{
+            const response = await fetch(url)
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+            const result = await response.text()
+            container.html(result)
+            if (callback) callback(container)
+        } catch(e){
+            console.error("Failed to load view", error)
+            if (callback) callback(null, error)
+        }
     }
 }
-if(typeof arrayRandom !== "function")
-    function arrayRandom(array){ return array[random(array.length-1)] }
 
-let defaultDiacriticsRemovalMap = [
+const defaultDiacriticsRemovalMap = [
     {'base':'A', 'letters':'\u0041\u24B6\uFF21\u00C0\u00C1\u00C2\u1EA6\u1EA4\u1EAA\u1EA8\u00C3\u0100\u0102\u1EB0\u1EAE\u1EB4\u1EB2\u0226\u01E0\u00C4\u01DE\u1EA2\u00C5\u01FA\u01CD\u0200\u0202\u1EA0\u1EAC\u1EB6\u1E00\u0104\u023A\u2C6F'},
     {'base':'AA','letters':'\uA732'},
     {'base':'AE','letters':'\u00C6\u01FC\u01E2'},
@@ -386,133 +457,53 @@ if(typeof accentsReplace !== "function")
 if(typeof aprostReplace !== "function")
     function aprostReplace(str){ return str.replace(/.\'/g, "") }
 
-if(!HTMLElement.prototype.hasOwnProperty("insert")){
-    HTMLElement.prototype.insert = function(position, string) {
-        switch (position) {
-            case "before": case "beforebegin": case "begin":
-            case "start": case "previous":
-                position = "beforebegin"; break;
-
-            case "after": case "afterend":
-            case "end": case "next":
-                position = "afterend"; break;
-
-            case "inbefore": case "instart": case "afterbegin":
-            case "insert": case "insertBefore":
-                position = "afterbegin"; break;
-
-            case "inafter": case "inend": case "beforeend":
-            case "append": case "appendChild": default:
-                position = "beforeend"; break;
-        }
-
-        const escaped = escapeHTMLPolicy.createHTML(string);
-        if(escaped instanceof TrustedHTML)
-            this.insertAdjacentHTML(position, escaped)
-    }
-}
-if(!NodeList.prototype.hasOwnProperty("insert")){
-    NodeList.prototype.insert = function(position, string) {
-        if (this.length <= 0) return
-        this.forEach(element => element.insert(position, string) )
+if(typeof random !== "function"){ function random(max = 1, min = 0) { DOMTools.random(max, min) } }
+if(!Array.prototype.hasOwnProperty("random")){
+    Array.prototype.random = function(count = 1){
+        return Array.from({ length: count }, () => this[DOMTools.random(this.length-1)])
     }
 }
 
-if(!HTMLElement.prototype.hasOwnProperty("model")){
-    HTMLElement.prototype.model = function(elements) {
-        const model = this;
-        model.addEventListener("keyup", () => {
-            if (elements instanceof NodeList) elements.forEach((element) => element.html(model.value) )
-            else elements.html(model.value)
+if(!HTMLElement.prototype.hasOwnProperty("appendChildren")){
+    HTMLElement.prototype.appendChildren = function(children){
+        if(!Array.isArray(children)) return null
+        children.forEach(child => {
+            if(child instanceof Node)
+                this.appendChild(child.cloneNode(true))
         })
     }
 }
-
-if(!HTMLElement.prototype.hasOwnProperty("watchAttr")){
-    HTMLElement.prototype.watchAttr = function(nameAttr = "", callback) {
-        let observer = new MutationObserver((mutations) => {
-            mutations.forEach(mutation => {
-                if(mutation.type === "attributes" && (nameAttr === "" || mutation.attributeName === nameAttr))
-                    callback(mutation, mutation.attributeName)
-            })
+if(!NodeList.prototype.hasOwnProperty("appendChildren")){
+    NodeList.prototype.appendChildren = function(children){
+        if(!this.length || !Array.isArray(children)) return null
+        this.forEach(child => {
+            if(child instanceof Node)
+                child.appendChildren(children)
         })
-        observer.observe(this, { attributes: true })
-        this._mutationObserver = observer
-        return observer
     }
 }
-if(!HTMLElement.prototype.hasOwnProperty("unwatchAttr")){
-    HTMLElement.prototype.unwatchAttr = function() {
-        if (this._mutationObserver) {
-            this._mutationObserver.disconnect();
-            this._mutationObserver = null;
-        }
-    }
-}
-if(!NodeList.prototype.hasOwnProperty("watchAttr")){
-    NodeList.prototype.watchAttr = function(nameAttr = "", callback) {
-        if (!this.length) return
-        this.forEach(element => element.watchAttr(nameAttr, callback))
-    }
-}
-if(!NodeList.prototype.hasOwnProperty("unwatchAttr")){
-    NodeList.prototype.unwatchAttr = function() {
-        if (!this.length) return
-        this.forEach(element => element.unwatchAttr())
+if(!NodeList.prototype.hasOwnProperty("appendChild")){
+    NodeList.prototype.appendChild = function(child){
+        if(!this.length && !(child instanceof Node)) return null
+        this.appendChildren([child])
     }
 }
 
-if(!String.prototype.hasOwnProperty("toCapitalize"))
-    String.prototype.toCapitalize = function(){ return this.charAt(0).toUpperCase() + this.slice(1); }
-
-if(typeof isMobileAndTablet !== "function")
-    function isMobileAndTablet(){ return isMobile() }
-if(typeof isMobile !== "function")
-    function isMobile(){ return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) }
-
-if(typeof sender !== "function"){
-    function sender({action, params = "", method = "POST", type = "text"}, callback) {
-        let xhr = new XMLHttpRequest()
-        xhr.onreadystatechange = function () {
-            if (this.readyState === xhr.DONE) {
-                if (this.status >= 200 && this.status < 300) {
-                    callback(this.responseText);
-                } else {
-                    console.error("Request failed:", this.status, this.statusText);
-                    callback(null, new Error(`Request failed with status ${this.status}`));
-                }
-            }
-        }
-        xhr.onerror = function() {
-            callback(null, new Error("Network error"));
-        }
-        xhr.open(method, action, true);
-        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
-        xhr.responseType = type
-        xhr.send(encodeURIComponent(params))
-    }
+if(!NodeList.prototype.hasOwnProperty("classList")){
+    Object.defineProperty(NodeList.prototype, "classList", {
+        get: function(){ return new ClassLists(this) }
+    })
 }
-
-if(typeof loadView !== "function"){
-    async function loadView({url, container}, callback = null){
-        if(!container || !url) return null
-        try{
-            const response = await fetch(url)
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-            const result = await response.text()
-            container.html(result)
-            if (callback) callback(container)
-        } catch(e){
-            console.error("Failed to load view", error)
-            if (callback) callback(null, error)
-        }
-    }
+if(!Array.prototype.hasOwnProperty("classList")){
+    Object.defineProperty(Array.prototype, "classList", {
+        get: function(){ return new ClassLists(this) }
+    })
 }
 
 /** PRIVATES */
 if(typeof ClassLists !== "class"){
     class ClassLists{
-        constructor(nodelist){
+        constructor(nodeList){
             this.nodeList = nodeList
         }
         add(classname){ this.nodeList.forEach(el => el.classList.add(classname)) }
