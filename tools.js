@@ -169,6 +169,7 @@ const DOMTools = {
         min = parseFloat(min); max = parseFloat(max);
         return Math.round(min + Math.random() * (max - min));
     },
+    randomArray: (elements, count = 1) => { return Array.from({ length: count }, () => elements[DOMTools.random(elements.length-1)]) },
     insert: (element, position, string) => {
         if(!element && !(element instanceof Node)) return null
         switch (position) {
@@ -263,108 +264,70 @@ const DOMTools = {
 };
 
 const DOMToolsPrototype = {
-    add: addPrototypeMethod,
-    remove: removePrototypeMethod
-};
-
-function addPrototypeMethod(proto, name, fn = null) {
-    if (!proto.prototype.hasOwnProperty(name)) {
-        
+    add: function(proto, name, fn = null, { enumerable = false, configurable = true, writable = false } = {}) {
+        if (!proto.prototype || proto.prototype.hasOwnProperty(name)) return null;
+            
         if(fn === null){
             if(DOMTools.hasOwnProperty(name)) fn = DOMTools[name]
             else return null
         }
 
-        proto.prototype[name] = function(...args) {
-            if(!this) return null
-            let callback = null;
+        Object.defineProperty(proto.prototype, name, {
+            value: function(...args){
+                if(!this) return null
+                let callback = null;
 
-            switch (proto) {
-                case Window:
-                case Document:
-                case HTMLElement:
-                case Number:
-                    let el = this;
-                    if(el instanceof Window) el = document;
-                    callback = fn(el, ...args)
-                    break;
-                case NodeList:
-                case Array:
-                    if(!this.length) callback = null
-                    callback = Array.from(this).flatMap(t => fn(t, ...args))
-                    break;
-                default:
-                    callback = fn(...args)
-                    break;
-            }
-            return callback
-        };
-    }
-}
-
-function removePrototypeMethod(proto, name){
-    if(proto.prototype.hasOwnProperty(name)){
-        delete proto.prototype[name]
-        console.info(`Prototype ${name} removed`)
-        return true
-    }
-    else{
-        console.error(`Prototype ${name} not found`)
+                switch (proto) {
+                    case Window:
+                    case Document:
+                    case HTMLElement:
+                    case Number:
+                        let el = this instanceof Window ? document : this;
+                        callback = fn(el, ...args)
+                        break;
+                    case NodeList:
+                    case Array:
+                        if(!this.length) return null
+                        callback = Array.from(this).flatMap(t => fn(t, ...args))
+                        break;
+                    default:
+                        callback = fn(...args)
+                        break;
+                }
+                return callback
+            },
+            enumerable,
+            configurable,
+            writable,
+        });
+    },
+    remove: function(proto, name){
+        if(proto.prototype.hasOwnProperty(name)){
+            delete proto.prototype[name]
+            return true
+        }
         return false
     }
-}
-
-if(typeof random !== "function"){
-    function random(max = 1, min = 0) { return DOMTools.random(max, min); }
-}
-if(!Array.prototype.hasOwnProperty("random")){
-    Array.prototype.random = function(count = 1){
-        return Array.from({ length: count }, () => this[DOMTools.random(this.length-1)])
-    }
-}
+};
 
 if (typeof window !== 'undefined') {
-    DOMToolsPrototype.add(NodeList, 'classList', function() {
-        return new DOMTools.ClassLists(this);
-    });
-    DOMToolsPrototype.add(Array, 'classList', function() {
-        return new DOMTools.ClassLists(this);
-    });
-}
-
-DOMToolsPrototype.add(NodeList, 'classList', function() {
-    return new DOMTools.ClassLists(this);
-});
-DOMToolsPrototype.add(Array, 'classList', function() {
-    return new DOMTools.ClassLists(this);
-});
-
-// Polyfill pour NodeList.forEach (IE11)
-if (!NodeList.prototype.forEach) {
-    NodeList.prototype.forEach = function(callback, thisArg) {
-        thisArg = thisArg || window;
-        for (let i = 0; i < this.length; i++) {
-            callback.call(thisArg, this[i], i, this);
+    Object.defineProperty(Array.prototype, 'random', {
+        value: function(count = 1){
+            return DOMTools.randomArray(this, count)
+        },
+        enumerable: false,
+        configurable: true,
+    })
+    Object.defineProperty(NodeList.prototype, 'classList', {
+        get: function(){
+            return new DOMTools.ClassLists(this);
         }
-    };
-}
-// Polyfill pour fetch (IE11)
-if (!window.fetch) {
-    window.fetch = function(url, options) {
-        return new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open(options ? options.method || 'GET' : 'GET', url);
-            xhr.onload = () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    resolve({ ok: true, status: xhr.status, text: () => Promise.resolve(xhr.responseText) });
-                } else {
-                    reject(new Error(`Request failed with status ${xhr.status}`));
-                }
-            };
-            xhr.onerror = () => reject(new Error('Network error'));
-            xhr.send(options ? options.body : null);
-        });
-    };
+    })
+    Object.defineProperty(Array.prototype, 'classList', {
+        get: function(){
+            return new DOMTools.ClassLists(this);
+        }
+    })
 }
 
 // NOT PERCENTAGE
