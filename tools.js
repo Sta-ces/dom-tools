@@ -2,24 +2,28 @@
  * Version: 2.0
  */
 
-const escapeHTMLPolicy = trustedTypes.createPolicy("myEscapePolicy", {
-    createHTML: (string) => {
-        if (typeof string !== 'string') return string;
-        return string
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#x27;');
-        },
-});
+function escapeHTML(str) {
+    if (typeof str !== 'string') return str;
+    return str.replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/\"/g, '&quot;')
+              .replace(/'/g, '&#x27;');
+}
+
+const escapeHTMLPolicy = (typeof trustedTypes !== 'undefined')
+    ? trustedTypes.createPolicy("myEscapePolicy", {
+        createHTML: (string) => escapeHTML(string)
+    })
+    : null;
+
+const observerMap = new WeakMap();
 
 const DOMTools = {
     action: (element, event, callback, options = false) => { element.addEventListener(event, callback, options) },
     noaction: (element, event, callback, options = false) => { element.removeEventListener(event, callback, options) },
     click: (element, callback, options = false) => { element.addEventListener("click", callback, options) },
     getElId: (element, id) => { if(id === "") return null; return document.getElementById(id) },
-    getQuery: (query) => { DOMTools.getQuery(document, query) },
     getQuery: (element, query) => {
         if(query === "" && !(element instanceof Node)) return null
         let el;
@@ -103,18 +107,18 @@ const DOMTools = {
 
             container.innerHTML = ""
             if (filteredItems.length > 0) {
-                container.appendChildren(filteredItems)
+                DOMTools.appendChildren(container, filteredItems)
             } else {
                 const messageElement = document.createElement(tag)
                 messageElement.className = "filter-msg"
                 messageElement.textContent = msg
-                container.appendChild(messageElement)
+                DOMTools.appendChild(container, messageElement)
             }
             fn()
         })
     },
     appendChildren: (element, children) => {
-        if(!element && !(element instanceof Node) && !Array.isArray(children)) return null
+        if(!element && !(element instanceof Node) && !Array.isArray(children) && !(children instanceof NodeList)) return null
         children.forEach(child => {
             if(child instanceof Node)
                 element.appendChild(child.cloneNode(true))
@@ -134,20 +138,22 @@ const DOMTools = {
     },
     html: (element, txt) => {
         if(!element && !(element instanceof Node)) return null
-        const escaped = escapeHTMLPolicy.createHTML(txt)
-        if(escaped instanceof TrustedHTML) element.innerHTML = escaped
+        const escaped = escapeHTMLPolicy
+            ? escapeHTMLPolicy.createHTML(txt)
+            : escapeHTML(txt);
+        element.innerHTML = escaped
     },
     between: (number, a, b) => {
-        if(!number && !(number instanceof Number)) return null
+        if(!number && typeof number === 'number') return null
         return Math.min(Math.max(number,a),b)
     },
     isbetween: (number, a, b) => {
-        if(!number && !(number instanceof Number)) return null
-        let min = Math.min.apply(Math, [a, b]), max = Math.max.apply(Math, [a, b])
+        if(!number && typeof number === 'number') return null
+        let min = Math.min(a, b), max = Math.max(a, b)
         return number > min && number < max
     },
     percentage: (number, { execute = "percentage", max = 100, min = 0, reduce = 0 }) => {
-        if(!number && !(number instanceof Number)) return null
+        if(!number && typeof number === 'number') return null
         if (Number.isNaN(number) || Number.isNaN(max) || Number.isNaN(min) || Number.isNaN(reduce)) return null
         let result = null
         switch(execute){
@@ -183,9 +189,10 @@ const DOMTools = {
                 position = "beforeend"; break;
         }
 
-        const escaped = escapeHTMLPolicy.createHTML(string);
-        if(escaped instanceof TrustedHTML)
-            element.insertAdjacentHTML(position, escaped)
+        const escaped = escapeHTMLPolicy
+            ? escapeHTMLPolicy.createHTML(txt)
+            : escapeHTML(txt);
+        element.insertAdjacentHTML(position, escaped)
     },
     model: (element, elements) => {
         if(!element && !(element instanceof Node)) return null
@@ -196,21 +203,44 @@ const DOMTools = {
         })
     },
     watchAttr: (element, nameAttr = "", fn) => {
-        if(!element && !(element instanceof Node)) return null
-        let observer = new MutationObserver((mutations) => {
+        if (!element || !(element instanceof Node)) return null;
+
+        // Nettoyer un observer existant
+        if (observerMap.has(element)) {
+            observerMap.get(element).disconnect();
+        }
+
+        const observer = new MutationObserver((mutations) => {
             mutations.forEach(mutation => {
-                if(mutation.type === "attributes" && (nameAttr === "" || mutation.attributeName === nameAttr))
-                    { fn(mutation, mutation.attributeName) } 
-            })
-        })
-        observer.observe(element, { attributes: true })
-        element._mutationObserver = observer
-        return observer
+                if (mutation.type === "attributes" && (nameAttr === "" || mutation.attributeName === nameAttr)) {
+                    fn(mutation, mutation.attributeName);
+                }
+            });
+        });
+
+        observer.observe(element, { attributes: true });
+        observerMap.set(element, observer);
+
+        // Nettoyer automatiquement quand l'élément est supprimé
+        const cleanupObserver = new MutationObserver((mutations) => {
+            mutations.forEach(mutation => {
+                if (Array.from(mutation.removedNodes).includes(element)) {
+                    if (observerMap.has(element)) {
+                        observerMap.get(element).disconnect();
+                        observerMap.delete(element);
+                    }
+                    cleanupObserver.disconnect();
+                }
+            });
+        });
+        cleanupObserver.observe(document, { childList: true, subtree: true });
+
+        return observer;
     },
     unwatchAttr: (element) => {
-        if (element._mutationObserver) {
-            element._mutationObserver.disconnect();
-            element._mutationObserver = null;
+        if (observerMap.has(element)) {
+            observerMap.get(element).disconnect();
+            observerMap.delete(element);
         }
     },
     toCapitalize: (string) => {
@@ -218,48 +248,17 @@ const DOMTools = {
         return string.charAt(0).toUpperCase() + string.slice(1)
     },
     isMobile: () => { return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) },
-    isMobileAndTablet: () => { return DOMTools.isMobile() },
-    sender: ({action, params = {}, method = "POST", type = "text"}, fn = null) => {
-        let xhr = new XMLHttpRequest()
-        xhr.onreadystatechange = function () {
-            if (this.readyState === xhr.DONE) {
-                if (this.status >= 200 && this.status < 300) {
-                    if(fn !== null) fn(this.responseText);
-                } else {
-                    console.error("Request failed:", this.status, this.statusText);
-                    if(fn !== null) fn(null, new Error(`Request failed with status ${this.status}`));
-                }
-            }
-        }
-        xhr.onerror = function() {
-            if(fn !== null) fn(null, new Error("Network error"));
-        }
-        xhr.open(method, action, true);
-        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
-        xhr.responseType = type
-        xhr.send(params instanceof string ? encodeURIComponent(params) : params)
-    },
-    loadView: async ({url, container}, fn = null) => {
-        if(!container || !url) return null
-        try{
-            const response = await fetch(url)
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-            const result = await response.text()
-            DOMTools.html(container, result)
-            if (fn !== null) fn(container)
-        } catch(e){
-            console.error("Failed to load view", error)
-            if (fn !== null) fn(null, error)
-        }
-    },
     accentsReplace: (string) => { return string.normalize('NFD').replaceAll(/[\u0300-\u036f]/g, "") },
     aprostReplace: (string) => { return string.replaceAll(/.\'/g, "") },
-    appendChildren: (children) => {
-        if(!Array.isArray(children) && !(children instanceof NodeList)) return null
-        children.forEach(child => {
-            if(child instanceof Node)
-                this.appendChild(child.cloneNode(true))
-        })
+    ClassLists: class ClassLists{
+        constructor(nodeList){
+            this.nodeList = nodeList
+        }
+        add(classname){ this.nodeList.forEach(el => el.classList.add(classname)) }
+        remove(classname){ this.nodeList.forEach(el => el.classList.remove(classname)) }
+        toggle(classname){ this.nodeList.forEach(el => el.classList.toggle(classname)) }
+        contains(classname){ return Array.from(this.nodeList).some(el => el.classList.contains(classname)) }
+        replace(oldClass, newClass){ this.nodeList.forEach(el => el.classList.replace(oldClass, newClass)) }
     },
 };
 
@@ -314,6 +313,31 @@ function removePrototypeMethod(proto, name){
         return false
     }
 }
+
+if(typeof random !== "function"){
+    function random(max = 1, min = 0) { return DOMTools.random(max, min); }
+}
+if(!Array.prototype.hasOwnProperty("random")){
+    Array.prototype.random = function(count = 1){
+        return Array.from({ length: count }, () => this[DOMTools.random(this.length-1)])
+    }
+}
+
+if (typeof window !== 'undefined') {
+    DOMToolsPrototype.add(NodeList, 'classList', function() {
+        return new DOMTools.ClassLists(this);
+    });
+    DOMToolsPrototype.add(Array, 'classList', function() {
+        return new DOMTools.ClassLists(this);
+    });
+}
+
+DOMToolsPrototype.add(NodeList, 'classList', function() {
+    return new DOMTools.ClassLists(this);
+});
+DOMToolsPrototype.add(Array, 'classList', function() {
+    return new DOMTools.ClassLists(this);
+});
 
 // Polyfill pour NodeList.forEach (IE11)
 if (!NodeList.prototype.forEach) {
