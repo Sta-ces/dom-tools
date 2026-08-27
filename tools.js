@@ -112,7 +112,7 @@ const DOMTools = {
                 const messageElement = document.createElement(tag)
                 messageElement.className = "filter-msg"
                 messageElement.textContent = msg
-                DOMTools.appendChild(container, messageElement)
+                container.appendChild(messageElement.cloneNode(true))
             }
             fn()
         })
@@ -136,11 +136,11 @@ const DOMTools = {
             }
         } )
     },
-    html: (element, txt) => {
+    html: (element, string) => {
         if(!element && !(element instanceof Node)) return null
         const escaped = escapeHTMLPolicy
-            ? escapeHTMLPolicy.createHTML(txt)
-            : escapeHTML(txt);
+            ? escapeHTMLPolicy.createHTML(string)
+            : escapeHTML(string);
         element.innerHTML = escaped
     },
     between: (number, a, b) => {
@@ -191,8 +191,8 @@ const DOMTools = {
         }
 
         const escaped = escapeHTMLPolicy
-            ? escapeHTMLPolicy.createHTML(txt)
-            : escapeHTML(txt);
+            ? escapeHTMLPolicy.createHTML(string)
+            : escapeHTML(string);
         element.insertAdjacentHTML(position, escaped)
     },
     model: (element, elements) => {
@@ -282,7 +282,7 @@ const DOMToolsPrototype = {
                     case Document:
                     case HTMLElement:
                     case Number:
-                        let el = this instanceof Window ? document : this;
+                        let el = proto === Window ? document : this;
                         callback = fn(el, ...args)
                         break;
                     case NodeList:
