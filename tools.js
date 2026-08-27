@@ -20,12 +20,21 @@ const escapeHTMLPolicy = (typeof trustedTypes !== 'undefined')
 const observerMap = new WeakMap();
 
 const DOMTools = {
-    action: (element, event, callback, options = false) => { element.addEventListener(event, callback, options) },
-    noaction: (element, event, callback, options = false) => { element.removeEventListener(event, callback, options) },
-    click: (element, callback, options = false) => { element.addEventListener("click", callback, options) },
+    action: (element, event, callback, options = false) => {
+        element.addEventListener(event, callback, options)
+        return element
+    },
+    noaction: (element, event, callback, options = false) => {
+        element.removeEventListener(event, callback, options)
+        return element
+    },
+    click: (element, callback, options = false) => {
+        element.addEventListener("click", callback, options)
+        return element
+    },
     getElId: (element, id) => { if(id === "") return null; return document.getElementById(id) },
     getQuery: (element, query) => {
-        if(query === "" && !(element instanceof Node)) return null
+        if(query === "" || !(element instanceof Node)) return null
         let el;
         try{
             el = element.querySelector(query)
@@ -36,7 +45,7 @@ const DOMTools = {
         return el;
     },
     getQueries: (element, query, toArray = false) => {
-        if(query === "" && !(element instanceof Node)) return null
+        if(query === "" || !(element instanceof Node)) return null
         let els;
         try{
             els = element.querySelectorAll(query)
@@ -65,7 +74,7 @@ const DOMTools = {
             let href = (element.hasAttribute("href"))
                 ? element.getAttribute("href")
                 : element.getAttribute("data-href")
-            let target = DOMTools.getQuery(href)
+            let target = DOMTools.getQuery(element, href)
 
             if(target === null) return null
 
@@ -87,7 +96,7 @@ const DOMTools = {
     },
     filterSearch: (element, {inputElement, container, classfilter = "filter-search", symbols = true, action = "keyup", msg = "No Result", tag = "li"}, fn = () => {}) => {
         if(!element && !(element instanceof Node)) return null
-        DOMTools.action(action, () => {
+        DOMTools.action(element, action, () => {
             let inputValue = inputElement.value.toLowerCase()
             if(symbols) inputValue = inputValue.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
 
@@ -144,16 +153,16 @@ const DOMTools = {
         element.innerHTML = escaped
     },
     between: (number, a, b) => {
-        if(!number && typeof number === 'number') return null
+        if(typeof number !== 'number' || Number.isNaN(number)) return null
         return Math.min(Math.max(number,a),b)
     },
     isbetween: (number, a, b) => {
-        if(!number && typeof number === 'number') return null
+        if(typeof number !== 'number' || Number.isNaN(number)) return null
         let min = Math.min(a, b), max = Math.max(a, b)
         return number > min && number < max
     },
     percentage: (number, { execute = "percentage", max = 100, min = 0, reduce = 0 }) => {
-        if(!number && typeof number === 'number') return null
+        if(typeof number !== 'number' || Number.isNaN(number)) return null
         if (Number.isNaN(number) || Number.isNaN(max) || Number.isNaN(min) || Number.isNaN(reduce)) return null
         let result = null
         switch(execute){
@@ -255,11 +264,26 @@ const DOMTools = {
         constructor(nodeList){
             this.nodeList = nodeList
         }
-        add(classname){ this.nodeList.forEach(el => el.classList.add(classname)) }
-        remove(classname){ this.nodeList.forEach(el => el.classList.remove(classname)) }
-        toggle(classname){ this.nodeList.forEach(el => el.classList.toggle(classname)) }
-        contains(classname){ return Array.from(this.nodeList).some(el => el.classList.contains(classname)) }
-        replace(oldClass, newClass){ this.nodeList.forEach(el => el.classList.replace(oldClass, newClass)) }
+        add(classname){
+            if (typeof classname !== 'string') return;
+            this.nodeList.forEach(el => el.classList.add(classname))
+        }
+        remove(classname){
+            if (typeof classname !== 'string') return;
+            this.nodeList.forEach(el => el.classList.remove(classname))
+        }
+        toggle(classname){
+            if (typeof classname !== 'string') return;
+            this.nodeList.forEach(el => el.classList.toggle(classname))
+        }
+        contains(classname){
+            if (typeof classname !== 'string') return;
+            return Array.from(this.nodeList).some(el => el.classList.contains(classname))
+        }
+        replace(oldClass, newClass){
+            if (typeof oldClass !== 'string' || typeof newClass !== 'string') return;
+            this.nodeList.forEach(el => el.classList.replace(oldClass, newClass))
+        }
     },
 };
 
@@ -311,6 +335,11 @@ const DOMToolsPrototype = {
 };
 
 if (typeof window !== 'undefined') {
+    DOMToolsPrototype.add(Window, 'action');
+    DOMToolsPrototype.add(Document, 'action');
+    DOMToolsPrototype.add(HTMLElement, 'action');
+    DOMToolsPrototype.add(NodeList, 'action');
+    DOMToolsPrototype.add(Array, 'action');
     Object.defineProperty(Array.prototype, 'random', {
         value: function(count = 1){
             return DOMTools.randomArray(this, count)
