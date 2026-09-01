@@ -94,6 +94,7 @@ const DOMTools = {
             animationId = requestAnimationFrame(animation);
         }, { element: element })
     },
+    scrollToTop: ({ top = 0, behavior = 'smooth' } = {}) => { window.scrollTo({ top, behavior }); },
     filterSearch: ({element = document, inputElement, container, classfilter = "filter-search", symbols = true, action = "keyup", msg = "No Result", tag = "li"} = {}, fn = () => {}) => {
         if(!element && !(element instanceof Node)) return null
         DOMTools.action(action, () => {
