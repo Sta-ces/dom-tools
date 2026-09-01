@@ -1,5 +1,5 @@
 /**
- * Version: 2.0
+ * Version: 2.1.0
  */
 
 function escapeHTML(str) {
@@ -20,20 +20,20 @@ const escapeHTMLPolicy = (typeof trustedTypes !== 'undefined')
 const observerMap = new WeakMap();
 
 const DOMTools = {
-    action: (element, event, callback, options = false) => {
+    action: (event, callback, { element = document, options = false } = {}) => {
         element.addEventListener(event, callback, options)
         return element
     },
-    noaction: (element, event, callback, options = false) => {
+    noaction: (event, callback, { element = document, options = false } = {}) => {
         element.removeEventListener(event, callback, options)
         return element
     },
-    click: (element, callback, options = false) => {
+    click: (callback, { element = document, options = false } = {}) => {
         element.addEventListener("click", callback, options)
         return element
     },
-    getElId: (element, id) => { if(id === "") return null; return document.getElementById(id) },
-    getQuery: (element, query) => {
+    getElId: (id) => { if(id === "") return null; return document.getElementById(id) },
+    getQuery: (query, { element = document } = {}) => {
         if(query === "" || !(element instanceof Node)) return null
         let el;
         try{
@@ -44,7 +44,7 @@ const DOMTools = {
         }
         return el;
     },
-    getQueries: (element, query, toArray = false) => {
+    getQueries: (query, { element = document,  toArray = false } = {}) => {
         if(query === "" || !(element instanceof Node)) return null
         let els;
         try{
@@ -57,7 +57,7 @@ const DOMTools = {
         }
         return (els !== null && toArray) ? Array.from(els) : els;
     },
-    scrollSmooth: (element, duration = 1000, stopDistance = 100) => {
+    scrollSmooth: ({ element = document, duration = 1000, stopDistance = 100 } = {}) => {
         if(!element && !(element instanceof Node)) return null
         let animationId = null
         duration = Number(duration)
@@ -68,13 +68,13 @@ const DOMTools = {
             return null
         }
 
-        DOMTools.click(element, () => {
+        DOMTools.click(() => {
             if (animationId) cancelAnimationFrame(animationId)
 
             let href = (element.hasAttribute("href"))
                 ? element.getAttribute("href")
                 : element.getAttribute("data-href")
-            let target = DOMTools.getQuery(element, href)
+            let target = DOMTools.getQuery(href, { element: element })
 
             if(target === null) return null
 
@@ -92,11 +92,11 @@ const DOMTools = {
             }
     
             animationId = requestAnimationFrame(animation);
-        })
+        }, { element: element })
     },
-    filterSearch: (element, {inputElement, container, classfilter = "filter-search", symbols = true, action = "keyup", msg = "No Result", tag = "li"}, fn = () => {}) => {
+    filterSearch: ({element = document, inputElement, container, classfilter = "filter-search", symbols = true, action = "keyup", msg = "No Result", tag = "li"} = {}, fn = () => {}) => {
         if(!element && !(element instanceof Node)) return null
-        DOMTools.action(element, action, () => {
+        DOMTools.action(action, () => {
             let inputValue = inputElement.value.toLowerCase()
             if(symbols) inputValue = inputValue.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
 
@@ -116,7 +116,7 @@ const DOMTools = {
 
             container.innerHTML = ""
             if (filteredItems.length > 0) {
-                DOMTools.appendChildren(container, filteredItems)
+                DOMTools.appendChildren({ children: filteredItems, element: container })
             } else {
                 const messageElement = document.createElement(tag)
                 messageElement.className = "filter-msg"
@@ -124,16 +124,16 @@ const DOMTools = {
                 container.appendChild(messageElement.cloneNode(true))
             }
             fn()
-        })
+        }, { element: element })
     },
-    appendChildren: (element, children) => {
+    appendChildren: ({ children, element = document } = {}) => {
         if(!element && !(element instanceof Node) && !Array.isArray(children) && !(children instanceof NodeList)) return null
         children.forEach(child => {
             if(child instanceof Node)
                 element.appendChild(child.cloneNode(true))
         })
     },
-    clone: (element, container, position = "after") => {
+    clone: (container, { position = "after", element = document } = {}) => {
         if(!element && !(element instanceof Node)) return null
         let node = element;
         container = container instanceof Node ? [container] : container;
@@ -145,23 +145,22 @@ const DOMTools = {
             }
         } )
     },
-    html: (element, string) => {
+    html: (string, { element = document } = {}) => {
         if(!element && !(element instanceof Node)) return null
         const escaped = escapeHTMLPolicy
             ? escapeHTMLPolicy.createHTML(string)
             : escapeHTML(string);
         element.innerHTML = escaped
     },
-    between: (number, a, b) => {
+    between: ({ number = Number, max, min } = {}) => {
         if(typeof number !== 'number' || Number.isNaN(number)) return null
-        return Math.min(Math.max(number,a),b)
+        return Math.min(Math.max(number,min),max)
     },
-    isbetween: (number, a, b) => {
+    isbetween: ({ number = Number, max, min } = {}) => {
         if(typeof number !== 'number' || Number.isNaN(number)) return null
-        let min = Math.min(a, b), max = Math.max(a, b)
-        return number > min && number < max
+        return number > Math.min(min, max) && number < Math.max(min, max)
     },
-    percentage: (number, { execute = "percentage", max = 100, min = 0, reduce = 0 }) => {
+    percentage: (number, { execute = "percentage", max = 100, min = 0, reduce = 0 } = {}) => {
         if(typeof number !== 'number' || Number.isNaN(number)) return null
         if (Number.isNaN(number) || Number.isNaN(max) || Number.isNaN(min) || Number.isNaN(reduce)) return null
         let result = null
@@ -173,13 +172,13 @@ const DOMTools = {
         }
         return reduce > 0 && execute !== "reduce" ? reducePerc(result, reduce) : result;
     },
-    random: (max = 1, min = 0) => {
+    random: ({ max = 1, min = 0 } = {}) => {
         if (isNaN(min) && isNaN(max)) return;
         min = parseFloat(min); max = parseFloat(max);
         return Math.round(min + Math.random() * (max - min));
     },
-    randomArray: (elements, count = 1) => { return Array.from({ length: count }, () => elements[DOMTools.random(elements.length-1)]) },
-    insert: (element, position, string) => {
+    randomArray: ({ elements, count = 1 } = {}) => { return Array.from({ length: count }, () => elements[DOMTools.random(elements.length-1)]) },
+    insert: ({ element = document, position, string } = {}) => {
         if(!element && !(element instanceof Node)) return null
         switch (position) {
             case "before": case "beforebegin": case "begin":
@@ -204,18 +203,16 @@ const DOMTools = {
             : escapeHTML(string);
         element.insertAdjacentHTML(position, escaped)
     },
-    model: (element, elements) => {
-        if(!element && !(element instanceof Node)) return null
-        const model = element;
-        DOMTools.action(model, "keyup", () => {
-            if (elements instanceof NodeList || elements instanceof Array) elements.forEach(el => DOMTools.html(el, model.value) )
-            else DOMTools.html(elements, model.value)
+    model: ({ elements, input } = {}) => {
+        if(!input && !(input instanceof Node)) return null
+        DOMTools.action(input, "keyup", () => {
+            if (elements instanceof NodeList || elements instanceof Array) elements.forEach(el => DOMTools.html(el, input.value) )
+            else DOMTools.html(elements, input.value)
         })
     },
-    watchAttr: (element, nameAttr = "", fn) => {
+    watchAttr: ({ element, nameAttr = "", fn } = {}) => {
         if (!element || !(element instanceof Node)) return null;
 
-        // Nettoyer un observer existant
         if (observerMap.has(element)) {
             observerMap.get(element).disconnect();
         }
@@ -231,7 +228,6 @@ const DOMTools = {
         observer.observe(element, { attributes: true });
         observerMap.set(element, observer);
 
-        // Nettoyer automatiquement quand l'élément est supprimé
         const cleanupObserver = new MutationObserver((mutations) => {
             mutations.forEach(mutation => {
                 if (Array.from(mutation.removedNodes).includes(element)) {
@@ -247,7 +243,7 @@ const DOMTools = {
 
         return observer;
     },
-    unwatchAttr: (element) => {
+    unwatchAttr: ({ element } = {}) => {
         if (observerMap.has(element)) {
             observerMap.get(element).disconnect();
             observerMap.delete(element);
@@ -307,14 +303,19 @@ const DOMToolsPrototype = {
                     case HTMLElement:
                     case Number:
                         let el = proto === Window ? document : this;
-                        callback = fn(el, ...args)
+                        args.element = el
+                        callback = fn(...args)
                         break;
                     case NodeList:
                     case Array:
                         if(!this.length) return null
-                        callback = Array.from(this).flatMap(t => fn(t, ...args))
+                        callback = Array.from(this).flatMap(t => {
+                            args.element = t
+                            return fn(...args)
+                        })
                         break;
                     default:
+                        args.element = this
                         callback = fn(...args)
                         break;
                 }
@@ -373,4 +374,13 @@ if(typeof ease !== "function"){
 }
 
 // EXPORTS
-export { DOMTools, DOMToolsPrototype };
+const getQuery = DOMTools.getQuery;
+const getQueries = DOMTools.getQueries;
+const action = DOMTools.action;
+const noaction = DOMTools.noaction;
+const click = DOMTools.click;
+const getElId = DOMTools.getElId;
+const random = DOMTools.random;
+const randomArray = DOMTools.randomArray;
+const html = DOMTools.html;
+export { DOMTools, DOMToolsPrototype, getQuery, getQueries, action, noaction, click, getElId, random, randomArray, html };
