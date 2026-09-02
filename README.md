@@ -3,134 +3,120 @@
 ![GitHub file size in bytes](https://img.shields.io/github/size/Sta-ces/dom-tools/tools.min.js)
 
 # dom-tools.js
-**Version 2.0** – Une bibliothèque JavaScript légère et intuitive pour simplifier la manipulation du DOM et étendre les fonctionnalités natives avec des méthodes pratiques et performantes.
+**Version 2.0** - A lightweight and intuitive JavaScript library designed to simplify DOM manipulation and extend native functionality with practical and high-performance methods.
 
 ---
 
 ## 📦 Installation
 
-### Téléchargement local
-1. Téléchargez [`tools.min.js`](https://github.com/Sta-ces/dom-tools/blob/main/tools.min.js) depuis le dépôt.
-2. Importez le module dans votre script JavaScript :
+### Local download
+1. Download [`tools.min.js`](https://github.com/Sta-ces/dom-tools/blob/main/tools.min.js) from the repository.
+2. Import the module into your JavaScript script:
    ```javascript
-   import { DOMTools, DOMToolsPrototype } from './dom-tools/tools.js'
+   import { DOMTools, DOMToolsPrototype, getQuery, getQueries, action, noaction, click, getElId, random, randomArray, html } from './dom-tools/tools.js'
    ```
-> ⚠️ **Note** : La bibliothèque est conçue pour être utilisée directement dans le navigateur. Si vous utilisez un bundler (Webpack, Vite, etc.), assurez-vous que les extensions de prototypes sont compatibles avec votre environnement.
+> ⚠️ **Note**: The library is designed to be used directly in the browser. If you are using a bundler (Webpack, Vite, etc.), please ensure that the prototype extensions are compatible with your environment.
 
 ---
 
 ---
 
-## ⚡ Fonctionnalités clés
+## ⚡ Key features
 
-dom-tools.js **étend les prototypes natifs** (`HTMLElement`, `NodeList`, `Window`, `Array`, `Number`, etc.) pour offrir une API fluide et intuitive.
+dom-tools.js **extends the native prototypes** (`HTMLElement`, `NodeList`, `Window`, `Array`, `Number`, etc.) to provide a seamless and intuitive API.
 
-### 🔍 Sélection d'éléments
-| Méthode | Description | Exemple |
+### 🔍 Selection of items
+| Method | Description | Example |
 |---------|-------------|---------|
-| `DOMTools.getQuery(selector)` | Équivalent à `document.querySelector()` | `DOMTools.getQuery('.ma-classe')` |
-| `DOMTTools.getQueries(selector)` | Équivalent à `document.querySelectorAll()` | `DOMTTools.getQueries('.items')` |
-| `DOMTools.getElId(id)` | Équivalent à `document.getElementById()` | `DOMTools.getElId('mon-id')` |
+| `DOMTools.getQuery(selector)` | Equivalent to `document.querySelector()` | `DOMTools.getQuery('.ma-classe')` |
+| `DOMTTools.getQueries(selector)` | Equivalent to `document.querySelectorAll()` | `DOMTTools.getQueries('.items')` |
+| `DOMTools.getElId(id)` | Equivalent to `document.getElementById()` | `DOMTools.getElId('mon-id')` |
 
-> ✨ **Bonus** : Ces méthodes sont disponibles sur **tous les éléments DOM** (pas seulement `document`).
-> Exemple : `DOMTools.getQuery('#parent').DOMTools.getQuery('.enfant')`
+> ✨ **Bonus** : Ces methods sont disponibles sur **tous les éléments DOM** (pas seulement `document`).
+> Example : `DOMTools.getQuery('#parent').DOMTools.getQuery('.enfant')`
 
 ---
 
 ### 🎯 Gestion des événements
-| Méthode | Description | Exemple |
+| Method | Description | Example |
 |---------|-------------|---------|
-| `DOMTools.action(event, callback, { element: document } )` | Ajoute un écouteur d'événement | `DOMTools.action('click', () => console.log('Cliqué !'), { element: DOMTools.getQuery('#btn') } )` |
-| `DOMTools.click(callback, { element: document })` | Raccourci pour `document.addEventListerner('click', ...)` | `DOMTools.click(() => alert('Hello!'), { element: DOMTools.getQuery('#btn') } )` |
-| `DOMTools.noaction(event, callback)` | Supprime un écouteur | `DOMTools.noaction('click', monCallback, { element: DOMTools.getQuery('#btn') })` |
+| `DOMTools.action(event, callback, { element: document } )` | Add an event listener | `DOMTools.action('click', () => console.log('Cliqué !'), { element: DOMTools.getQuery('#btn') } )` |
+| `DOMTools.click(callback, { element: document })` | Shortcut for `document.addEventListerner('click', ...)` | `DOMTools.click(() => alert('Hello!'), { element: DOMTools.getQuery('#btn') } )` |
+| `DOMTools.noaction(event, callback)` | Remove a listener | `DOMTools.noaction('click', monCallback, { element: DOMTools.getQuery('#btn') })` |
 
-> 💡 **Astuce** : Les méthodes sont **chaînables** et fonctionnent sur les `NodeList` uniquement vous l'autorisez :
+> 💡 **Tip** : Methods are **chainable** and only operate on `NodeList`s if you allow them to:
 > ```javascript
-> DOMToolsPrototype.add(NodeList, 'click');
-> DOMTTools.getQueries('.btn').click(() => console.log('Tous les boutons cliqués !'));
+> DOMToolsPrototype.add(NodeList, 'click'); // Allow the chained to NodeList
+> DOMTTools.getQueries('.btn').click(() => console.log('All the buttons clicked!'));
 > ```
-> Les méthodes chaînables par défaut à l'importation du fichier tools.min.js : {Window, Document, HTMLElement, NodeList, Array}.action(), {Array}.random(), {NodeList, Array}.classList().
+> The methods that can be chained by default when importing the tools.min.js file: {Window, Document, HTMLElement, NodeList, Array}.action(), {Array}.random(), {NodeList, Array}.classList().
 
 ---
 
-### 🎨 Manipulation des classes
-dom-tools.js étend `classList` pour fonctionner sur **les `NodeList` et `Array`** :
+### 🎨 Working with classes
+dom-tools.js extends `classList` to work on **`NodeList` and `Array`**:
 ```javascript
-// Ajouter une classe à plusieurs éléments
+// Add a class to multiple elements
 DOMTTools.getQueries('.items').classList.add('active');
 
-// Supprimer une classe
+// Delete a class
 DOMTTools.getQueries('.items').classList.remove('old-class');
-
-// Basculer une classe
-DOMTools.getQuery('#toggle-btn').classList.toggle('is-open');
 ```
 
 ---
 
-### 📜 Manipulation du contenu
-| Méthode | Description |
+### 🎭 Animations and utilities
+| Method | Description |
 |---------|-------------|
-| `DOMTools.html(content)` | Définir le contenu HTML |
-| `DOMTools.appendChild(element)` | Ajouter un enfant (sur `NodeList`) |
-| `DOMTools.appendChildren([...elements])` | Ajouter plusieurs enfants |
-
----
-
-### 🎭 Animations et utilitaires
-| Méthode | Description |
-|---------|-------------|
-| `DOMTools.scrollSmooth({ element = document, duration = 1000, stopDistance = 100 })` | Scroll fluide vers un élément |
-| `DOMTools.random({ max, min })` | Nombre aléatoire |
-| `Array.random(count)` | Élément(s) aléatoire(s) d'un tableau |
-
----
+| `DOMTools.scrollSmooth({ element = document, duration = 1000, stopDistance = 100 })` | Smooth scrolling to an element |
+| `DOMTools.random({ max, min })` | Random number |
+| `Array.random(count)` | Random element(s) in an array |
 
 ---
 ---
 
-## 📚 Documentation complète
-Pour une **liste exhaustive des méthodes**, des **exemples avancés** et des **cas d'usage**, consultez :
-👉 **[Wiki officielle](https://github.com/Sta-ces/dom-tools/wiki)**
+## 📚 Full documentation
+For a **comprehensive list of methods**, **advanced examples** and **use cases**, see:
+👉 **[Wiki](https://github.com/Sta-ces/dom-tools/wiki)**
 
 ---
 ---
 
 ## 🤝 Contribution
-Les contributions sont les bienvenues ! Voici comment participer :
+Contributions are welcome! Here’s how to get involved:
 
-1. **Signaler un bug** :
-   Ouvrez une [issue](https://github.com/Sta-ces/dom-tools/issues) avec une description claire et un exemple reproductible.
+1. **Report a bug**:
+   Open an [issue](https://github.com/Sta-ces/dom-tools/issues) with a clear description and a reproducible example.
 
-2. **Proposer une amélioration** :
-   Ouvrez une [discussion](https://github.com/Sta-ces/dom-tools/discussions) pour en discuter avant de coder.
+2. **Suggest an improvement**:
+   Start a [discussion](https://github.com/Sta-ces/dom-tools/discussions) to discuss this before you start coding.
 
-3. **Soumettre du code** :
-   - Forkez le dépôt.
-   - Créez une branche (`git checkout -b feature/ma-fonctionnalite`).
-   - Commitez vos changements (`git commit -m "Ajout de ma fonctionnalite"`).
-   - Poussez vers votre fork (`git push origin feature/ma-fonctionnalite`).
-   - Ouvrez une **Pull Request** vers `main`.
+3. **Submit code**:
+   - Fork the repository.
+   - Create a branch (`git checkout -b feature/my-feature`).
+   - Commit your changes (`git commit -m ‘Added my feature’`).
+   - Push to your fork (`git push origin feature/my-feature`).
+   - Create a **Pull Request** to `main`.
 
-> ⚠️ **Règles** :
-> - Respectez le style de code existant.
-> - Ajoutez des **tests** si possible.
-> - Mettez à jour la documentation (README ou Wiki).
+> ⚠️ **Rules** :
+> - Please adhere to the existing coding style.
+> - Add **tests** where possible.
+> - Update the documentation (README or Wiki).
 
 ---
 ---
 
 ## 📜 Licence
-Ce projet est sous **licence MIT** – libre d'utilisation, de modification et de distribution.
+This project is licensed under the **MIT licence** – it is free to use, modify and distribute.
 
-> © 2022–2026 [Cédric Staces](https://github.com/Sta-ces)
-> Voir [LICENSE](https://github.com/Sta-ces/dom-tools/blob/main/LICENSE) pour plus de détails.
+> © 2022–2026 [Cedric Staces](https://github.com/Sta-ces)
+> See [LICENCE](https://github.com/Sta-ces/dom-tools/blob/main/LICENSE) for further details.
 
 ---
 ---
 
 ## 📬 Contact
-Pour toute question ou support :
+If you have any questions or require support:
 - **GitHub** : [@Sta-ces](https://github.com/Sta-ces)
 - **Issues** : [dom-tools/issues](https://github.com/Sta-ces/dom-tools/issues)
 
@@ -138,14 +124,13 @@ Pour toute question ou support :
 ---
 
 ## 🏷️ Changelog (v2.0)
-### ✨ Nouveautés
-- **Amélioration des performances** : Optimisation des méthodes pour les `NodeList`.
-- **Nouveaux utilitaires** : `Array.random()`, `numbersRandom()`, `Number.percentage()`.
-- **Support étendu** : Compatibilité améliorée avec les navigateurs modernes.
+### ✨ News
+- **Performance improvements**: Optimisation of methods for `NodeList`.
+- **New utility functions**: `Array.random()`, `numbersRandom()`, `Number.percentage()`.
+- **Extended support**: Improved compatibility with modern browsers.
 
 ### 🔧 Corrections
-- Fix des bugs mineurs dans `filterSearch` et `scrollSmooth`.
-- Meilleure gestion des erreurs pour les sélecteurs invalides.
+- Fixed minor bugs in `filterSearch` and `scrollSmooth`.
+- Improved error handling for invalid selectors.
 
-> 📌 **Voir le [CHANGELOG complet](https://github.com/Sta-ces/dom-tools/wiki/Changelog)**.
 ```
