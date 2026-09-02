@@ -70,7 +70,7 @@ DOMTools.getQuery('#toggle-btn').classList.toggle('is-open');
 
 ### 📜 Manipulation du contenu
 | Méthode | Description |
-|---------|-------------|---------|
+|---------|-------------|
 | `DOMTools.html(content)` | Définir le contenu HTML |
 | `DOMTools.appendChild(element)` | Ajouter un enfant (sur `NodeList`) |
 | `DOMTools.appendChildren([...elements])` | Ajouter plusieurs enfants |
@@ -79,7 +79,7 @@ DOMTools.getQuery('#toggle-btn').classList.toggle('is-open');
 
 ### 🎭 Animations et utilitaires
 | Méthode | Description |
-|---------|-------------|---------|
+|---------|-------------|
 | `DOMTools.scrollSmooth({ element = document, duration = 1000, stopDistance = 100 })` | Scroll fluide vers un élément |
 | `DOMTools.random({ max, min })` | Nombre aléatoire |
 | `Array.random(count)` | Élément(s) aléatoire(s) d'un tableau |
