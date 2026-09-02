@@ -132,5 +132,3 @@ If you have any questions or require support:
 ### 🔧 Corrections
 - Fixed minor bugs in `filterSearch` and `scrollSmooth`.
 - Improved error handling for invalid selectors.
-
-```
