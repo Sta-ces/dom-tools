@@ -2,7 +2,6 @@ Voici une proposition de **README.md** pour **dom-tools.js v2.0**, structurée p
 
 ---
 
-```markdown
 # dom-tools.js 🚀
 
 **Version 2.0** – Une bibliothèque JavaScript légère et intuitive pour simplifier la manipulation du DOM et étendre les fonctionnalités natives avec des méthodes pratiques et performantes.
