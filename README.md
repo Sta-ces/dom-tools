@@ -9,6 +9,7 @@ Voici une proposition de **README.md** pour **dom-tools.js v2.0**, structurée p
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CDN](https://img.shields.io/badge/CDN-jsDelivr-blue.svg)](https://cdn.jsdelivr.net/gh/Sta-ces/dom-tools/tools.min.js)
 [![Size](https://img.shields.io/badge/Size-~20KB-minified-green.svg)](https://github.com/Sta-ces/dom-tools/blob/main/tools.min.js)
+![GitHub file size in bytes](https://img.shields.io/github/size/Sta-ces/dom-tools/tools.min.js)
 
 ---
 
