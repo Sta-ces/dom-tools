@@ -74,7 +74,7 @@ const DOMTools = {
             let href = (element.hasAttribute("href"))
                 ? element.getAttribute("href")
                 : element.getAttribute("data-href")
-            let target = DOMTools.getQuery(href, { element: element })
+            let target = href ? DOMTools.getQuery(href) : document.body
 
             if(target === null) return null
 
