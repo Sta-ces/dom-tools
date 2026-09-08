@@ -342,6 +342,7 @@ if (typeof window !== 'undefined') {
     DOMToolsPrototype.add(HTMLElement, 'action');
     DOMToolsPrototype.add(NodeList, 'action');
     DOMToolsPrototype.add(Array, 'action');
+    DOMToolsPrototype.add(String, 'toCapitalize');
     Object.defineProperty(Array.prototype, 'random', {
         value: function(count = 1){
             return DOMTools.randomArray(this, count)
